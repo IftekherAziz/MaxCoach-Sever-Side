@@ -1,8 +1,8 @@
-const express = require ("express");
+const express = require("express");
 const app = express();
 const cors = require("cors");
 require('dotenv').config()
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const port = process.env.PORT || 5000;
 
 // Middleware: 
@@ -31,7 +31,7 @@ async function run() {
         const userCollection = client.db("maxcoach").collection("users");
 
 
-        /* Users Related API's */   
+        /* Users Related API's */
         // GET users data from MongoDB:
         app.get('/users', async (req, res) => {
             const result = await userCollection.find().toArray();
@@ -59,6 +59,37 @@ async function run() {
             const result = await userCollection.insertOne(user);
             res.send(result);
         });
+
+        // Update user role as admin on MongoDB:
+        app.patch('/users/admin/:id', async (req, res) => {
+            const id = req.params.id;
+            console.log(id);
+            const filter = { _id: new ObjectId(id) };
+            const updateDoc = {
+                $set: {
+                    role: 'admin'
+                },
+            };
+
+            const result = await userCollection.updateOne(filter, updateDoc);
+            res.send(result);
+
+        })
+
+        // Update user role as instructor on MongoDB:
+        app.patch('/users/instructor/:id', async (req, res) => {
+            const id = req.params.id;
+            console.log(id);
+            const filter = { _id: new ObjectId(id) };
+            const updateDoc = {
+                $set: {
+                    role: 'instructor'
+                },
+            };
+            const result = await userCollection.updateOne(filter, updateDoc);
+            res.send(result);
+        })
+
 
 
         // Send a ping to confirm a successful connection
