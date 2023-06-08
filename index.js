@@ -32,13 +32,13 @@ async function run() {
 
 
         /* Users Related API's */   
-        // 1.GET users data from MongoDB:
+        // GET users data from MongoDB:
         app.get('/users', async (req, res) => {
             const result = await userCollection.find().toArray();
             res.send(result);
         });
 
-        // 2.POST users data on MongoDB:
+        // POST users data on MongoDB:
         app.post('/users', async (req, res) => {
             const user = req.body;
             const query = { email: user.email }
@@ -52,7 +52,7 @@ async function run() {
             res.send(result);
         });
 
-        /* // 3.GET user if admin: 
+        /* // GET user if admin: 
         app.get('/users/admin/:email', async (req, res) => {
             const email = req.params.email;
 
@@ -66,7 +66,7 @@ async function run() {
             res.send(result);
         });
 
-        // 4.GET user if instructor:
+        // GET user if instructor:
         app.get('/users/instructor/:email',  async (req, res) => {
             const email = req.params.email;
 
