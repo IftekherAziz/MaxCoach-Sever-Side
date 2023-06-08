@@ -25,7 +25,7 @@ const client = new MongoClient(uri, {
 async function run() {
     try {
         // Connect the client to the server	(optional starting in v4.7)
-        // await client.connect();
+        await client.connect();
 
         // Connect database collection:
         const userCollection = client.db("maxcoach").collection("users");
@@ -35,6 +35,14 @@ async function run() {
         // GET users data from MongoDB:
         app.get('/users', async (req, res) => {
             const result = await userCollection.find().toArray();
+            res.send(result);
+        });
+
+        // GET users by email data from MongoDB:
+        app.get('/users/:email', async (req, res) => {
+            const email = req.params.email;
+            const query = { email: email };
+            const result = await userCollection.findOne(query);
             res.send(result);
         });
 
@@ -52,35 +60,6 @@ async function run() {
             res.send(result);
         });
 
-        /* // GET user if admin: 
-        app.get('/users/admin/:email', async (req, res) => {
-            const email = req.params.email;
-
-            if (req.decoded.email !== email) {
-                res.send({ admin: false })
-            }
-
-            const query = { email: email }
-            const user = await userCollection.findOne(query);
-            const result = { admin: user?.role === 'admin' }
-            res.send(result);
-        });
-
-        // GET user if instructor:
-        app.get('/users/instructor/:email',  async (req, res) => {
-            const email = req.params.email;
-
-            if (req.decoded.email !== email) {
-                res.send({ instructor: false })
-            }
-
-            const query = { email: email }
-            const user = await userCollection.findOne(query);
-            const result = { instructor: user?.role === 'instructor' }
-            res.send(result);
-        }) */
-
-    
 
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
