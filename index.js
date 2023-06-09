@@ -58,7 +58,7 @@ async function run() {
             });
             res.send({ token });
         })
-        
+
         // verifyAdmin:
         const verifyAdmin = async (req, res, next) => {
             const email = req.decoded.email;
@@ -95,6 +95,12 @@ async function run() {
             res.send(result);
         });
 
+        // GET all instructor data from MongoDB:
+        app.get('/instructors', async (req, res) => {
+            const result = await userCollection.find({ role: 'instructor' }).toArray();
+            res.send(result);
+        })
+
         // POST users data on MongoDB:
         app.post('/users', async (req, res) => {
             const user = req.body;
@@ -110,8 +116,8 @@ async function run() {
         });
 
         // Update user role as admin on MongoDB:
-        app.patch('/users/admin/:id',async (req, res) => {
-            const id = req.params.id;    
+        app.patch('/users/admin/:id', async (req, res) => {
+            const id = req.params.id;
             const filter = { _id: new ObjectId(id) };
             const updateDoc = {
                 $set: {
@@ -126,7 +132,7 @@ async function run() {
 
         // Update user role as instructor on MongoDB:
         app.patch('/users/instructor/:id', async (req, res) => {
-            const id = req.params.id;         
+            const id = req.params.id;
             const filter = { _id: new ObjectId(id) };
             const updateDoc = {
                 $set: {
@@ -136,6 +142,19 @@ async function run() {
             const result = await userCollection.updateOne(filter, updateDoc);
             res.send(result);
         })
+
+         // GET classes added by an instructor based on email
+         app.get('/classes/:email', async (req, res) => {
+             const email = req.params.email;
+             const classes = await classesCollection.find({ instructorEmail: email }).toArray();
+             res.send(classes);
+         });
+
+        
+
+
+
+
 
         // POST a class data on MongoDB:
         app.post('/classes', async (req, res) => {
