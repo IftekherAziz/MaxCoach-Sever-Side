@@ -31,6 +31,14 @@ async function run() {
         // Connect database collection:
         const userCollection = client.db("maxcoach").collection("users");
 
+        // POST jwt token on MongoDB:
+        app.post('/jwt', async (req, res) => {
+            const user = req.body;
+            const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
+                expiresIn: '2h'
+            });
+            res.send({ token });
+        })
         
         // GET users data from MongoDB:
         app.get('/users', async (req, res) => {
