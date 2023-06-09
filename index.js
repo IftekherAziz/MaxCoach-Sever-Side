@@ -58,7 +58,7 @@ async function run() {
             res.send({ token });
         })
         
-        // Warning: use verifyJWT before using verifyAdmin
+        // verifyAdmin:
         const verifyAdmin = async (req, res, next) => {
             const email = req.decoded.email;
             const query = { email: email }
@@ -69,8 +69,19 @@ async function run() {
             next();
         }
 
+        // verifyInstructor:
+        const verifyInstructor = async (req, res, next) => {
+            const email = req.decoded.email;
+            const query = { email: email }
+            const user = await userCollection.findOne(query);
+            if (user?.role !== 'instructor') {
+                return res.status(403).send({ error: true, message: 'forbidden message' });
+            }
+            next();
+        }
+
         // GET users data from MongoDB:
-        app.get('/users', async (req, res) => {
+        app.get('/users', verifyJWT, verifyAdmin, async (req, res) => {
             const result = await userCollection.find().toArray();
             res.send(result);
         });
