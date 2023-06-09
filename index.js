@@ -48,6 +48,7 @@ async function run() {
 
         // Connect database collection:
         const userCollection = client.db("maxcoach").collection("users");
+        const classesCollection = client.db("maxcoach").collection("classes");
 
         // POST jwt token on MongoDB:
         app.post('/jwt', async (req, res) => {
@@ -86,7 +87,7 @@ async function run() {
             res.send(result);
         });
 
-        // GET users by email data from MongoDB:
+        // GET user by email data from MongoDB:
         app.get('/users/:email', async (req, res) => {
             const email = req.params.email;
             const query = { email: email };
@@ -109,7 +110,7 @@ async function run() {
         });
 
         // Update user role as admin on MongoDB:
-        app.patch('/users/admin/:id', async (req, res) => {
+        app.patch('/users/admin/:id',async (req, res) => {
             const id = req.params.id;    
             const filter = { _id: new ObjectId(id) };
             const updateDoc = {
@@ -133,6 +134,13 @@ async function run() {
                 },
             };
             const result = await userCollection.updateOne(filter, updateDoc);
+            res.send(result);
+        })
+
+        // POST a class data on MongoDB:
+        app.post('/classes', async (req, res) => {
+            const newItem = req.body;
+            const result = await classesCollection.insertOne(newItem);
             res.send(result);
         })
 
