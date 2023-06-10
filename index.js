@@ -49,6 +49,7 @@ async function run() {
         // Connect database collection:
         const userCollection = client.db("maxcoach").collection("users");
         const classesCollection = client.db("maxcoach").collection("classes");
+        const cartCollection = client.db("maxcoach").collection("carts");
 
         // POST jwt token on MongoDB:
         app.post('/jwt', async (req, res) => {
@@ -95,12 +96,6 @@ async function run() {
             res.send(result);
         });
 
-        // GET all instructor data from MongoDB:
-        app.get('/instructors', async (req, res) => {
-            const result = await userCollection.find({ role: 'instructor' }).toArray();
-            res.send(result);
-        })
-
         // POST users data on MongoDB:
         app.post('/users', async (req, res) => {
             const user = req.body;
@@ -143,18 +138,31 @@ async function run() {
             res.send(result);
         })
 
-         // GET classes added by an instructor based on email
-         app.get('/classes/:email', async (req, res) => {
-             const email = req.params.email;
-             const classes = await classesCollection.find({ instructorEmail: email }).toArray();
-             res.send(classes);
-         });
-
-        
+        // GET all instructor data from MongoDB:
+        app.get('/instructors', async (req, res) => {
+            const result = await userCollection.find({ role: 'instructor' }).toArray();
+            res.send(result);
+        })
 
 
+        // GET all approved classes data from MongoDB:
+        app.get('/viewClasses', async (req, res) => {
+            const result = await classesCollection.find({ status: 'approved' }).toArray();
+            res.send(result);
+        })
 
+        // GET all classes data from MongoDB:
+        app.get('/classes', verifyJWT, verifyAdmin, async (req, res) => {
+            const result = await classesCollection.find().toArray();
+            res.send(result);
+        })
 
+        // GET classes added by an instructor based on email
+        app.get('/classes/:email', verifyJWT, verifyInstructor, async (req, res) => {
+            const email = req.params.email;
+            const classes = await classesCollection.find({ instructorEmail: email }).toArray();
+            res.send(classes);
+        });
 
         // POST a class data on MongoDB:
         app.post('/classes', async (req, res) => {
@@ -163,6 +171,82 @@ async function run() {
             res.send(result);
         })
 
+        // PATCH a class status approval based on class id data on MongoDB:
+        app.patch('/classes/approve/:id', async (req, res) => {
+            const id = req.params.id;
+            const filter = { _id: new ObjectId(id) };
+            const updateDoc = {
+                $set: {
+                    status: 'approved'
+                },
+            };
+
+            const result = await classesCollection.updateOne(filter, updateDoc);
+            res.send(result);
+
+        })
+
+        // PATCH a class status denied based on class id data on MongoDB:
+        app.patch('/classes/deny/:id', async (req, res) => {
+            const id = req.params.id;
+            const filter = { _id: new ObjectId(id) };
+            const updateDoc = {
+                $set: {
+                    status: 'denied'
+                },
+            };
+
+            const result = await classesCollection.updateOne(filter, updateDoc);
+            res.send(result);
+
+        })
+
+        // PATCH a class feedback based on class id data on MongoDB:
+        app.patch('/classes/feedback/:id', async (req, res) => {
+            const id = req.params.id;
+            const { feedback } = req.body;
+
+            try {
+                const filter = { _id: new ObjectId(id) };
+                const updateDoc = {
+                    $set: {
+                        feedback: feedback
+                    },
+                };
+                const result = await classesCollection.updateOne(filter, updateDoc);
+                res.json(result);
+            } catch (error) {
+                console.error(error);
+                res.status(500).json({ error: 'An error occurred while updating the feedback.' });
+            }
+        });
+
+        // GET all classes carts data  from MongoDB:
+        app.get('/carts', async (req, res) => {
+            const email = req.query.email;
+            if (!email) {
+                res.send([]);
+            }
+            const query = { email: email };
+            const result = await cartCollection.find(query).toArray();
+            res.send(result);
+        })
+
+        // POST a class data cart on MongoDB:
+        app.post('/carts', async (req, res) => {
+            const selectedClass = req.body;
+            console.log(selectedClass);
+            const result = await cartCollection.insertOne(selectedClass);
+            res.send(result);
+        })
+
+        // DELETE a class data from cart on MongoDB:
+        app.delete('/carts/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) };
+            const result = await cartCollection.deleteOne(query);
+            res.send(result);
+        })
 
 
         // Send a ping to confirm a successful connection
