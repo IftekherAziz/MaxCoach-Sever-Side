@@ -260,7 +260,15 @@ async function run() {
             });
             res.send({ clientSecret: paymentIntent.client_secret });
         })
-
+        
+        // POST payment data on MongoDB:
+        app.post('/payments', async (req, res) => {
+            const payment = req.body;
+            const insertResult = await paymentCollection.insertOne(payment);
+            const query = { _id: { $in: payment.cartItems.map(id => new ObjectId(id)) } };
+            const deleteResult = await cartCollection.deleteMany(query);
+            res.send({ insertResult, deleteResult });
+        })
         
 
 
