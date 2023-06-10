@@ -46,16 +46,17 @@ async function run() {
         // Connect the client to the server	(optional starting in v4.7)
         await client.connect();
 
-        // Connect database collection:
+        // Create database collection:
         const userCollection = client.db("maxcoach").collection("users");
         const classesCollection = client.db("maxcoach").collection("classes");
         const cartCollection = client.db("maxcoach").collection("carts");
+        const paymentCollection = client.db("maxcoach").collection("payments");
 
         // POST jwt token on MongoDB:
         app.post('/jwt', async (req, res) => {
             const user = req.body;
             const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
-                expiresIn: '2h'
+                expiresIn: '1d'
             });
             res.send({ token });
         })
@@ -66,7 +67,7 @@ async function run() {
             const query = { email: email }
             const user = await userCollection.findOne(query);
             if (user?.role !== 'admin') {
-                return res.status(403).send({ error: true, message: 'forbidden message' });
+                return res.status(403).send({ error: true, message: 'Forbidden Access' });
             }
             next();
         }
@@ -77,7 +78,7 @@ async function run() {
             const query = { email: email }
             const user = await userCollection.findOne(query);
             if (user?.role !== 'instructor') {
-                return res.status(403).send({ error: true, message: 'forbidden message' });
+                return res.status(403).send({ error: true, message: 'Forbidden Access' });
             }
             next();
         }
@@ -247,6 +248,20 @@ async function run() {
             const result = await cartCollection.deleteOne(query);
             res.send(result);
         })
+
+        // Create payment intent : stripe
+        app.post('/create-payment-intent', async (req, res) => {
+            const { price } = req.body;
+            const amount = price * 100;
+            const paymentIntent = await stripe.paymentIntents.create({
+                currency: 'usd',
+                amount: amount,
+                payment_method_types: ['card']
+            });
+            res.send({ clientSecret: paymentIntent.client_secret });
+        })
+
+        
 
 
         // Send a ping to confirm a successful connection
