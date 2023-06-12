@@ -287,7 +287,7 @@ async function run() {
             const email = req.params.email;
             const query = { email: email };
             const result = await paymentCollection.find(query).toArray();
-            res.send(result);
+            res.send(result.reverse());
         })
 
         // POST payment data on MongoDB:
