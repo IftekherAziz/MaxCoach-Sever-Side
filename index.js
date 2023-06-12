@@ -52,7 +52,7 @@ async function run() {
         const classesCollection = client.db("maxcoach").collection("classes");
         const cartCollection = client.db("maxcoach").collection("carts");
         const paymentCollection = client.db("maxcoach").collection("payments");
-
+        const contactCollection = client.db("maxcoach").collection("contact");
         // POST jwt token on MongoDB:
         app.post('/jwt', async (req, res) => {
             const user = req.body;
@@ -316,6 +316,14 @@ async function run() {
 
 
         })
+
+        // POST contact form data to MongoDB
+        app.post('/contact', async (req, res) => {
+            const contact = req.body;      
+            const result = await contactCollection.insertOne(contact);
+            res.send(result);
+        });
+
 
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
