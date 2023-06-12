@@ -4,6 +4,7 @@ const cors = require("cors");
 require('dotenv').config()
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const jwt = require('jsonwebtoken');
+const stripe = require('stripe')(process.env.PAYMENT_SECRET_KEY);
 const port = process.env.PORT || 5000;
 
 // Middleware: 
@@ -44,7 +45,7 @@ const client = new MongoClient(uri, {
 async function run() {
     try {
         // Connect the client to the server	(optional starting in v4.7)
-        await client.connect();
+        // await client.connect();
 
         // Create database collection:
         const userCollection = client.db("maxcoach").collection("users");
@@ -112,7 +113,7 @@ async function run() {
         });
 
         // Update user role as admin on MongoDB:
-        app.patch('/users/admin/:id', async (req, res) => {
+        app.patch('/users/admin/:id', verifyJWT, verifyAdmin, async (req, res) => {
             const id = req.params.id;
             const filter = { _id: new ObjectId(id) };
             const updateDoc = {
@@ -127,7 +128,7 @@ async function run() {
         })
 
         // Update user role as instructor on MongoDB:
-        app.patch('/users/instructor/:id', async (req, res) => {
+        app.patch('/users/instructor/:id', verifyJWT, verifyAdmin, async (req, res) => {
             const id = req.params.id;
             const filter = { _id: new ObjectId(id) };
             const updateDoc = {
@@ -152,6 +153,13 @@ async function run() {
             res.send(result);
         })
 
+        // GET all popular classes data from MongoDB:
+        app.get('/classes/popular', async (req, res) => {
+            const popularClasses = await classesCollection.find({ status: 'approved' }).sort({ 'enrolled_students': -1 }).limit(6).toArray();
+            res.json(popularClasses);
+
+        });
+
         // GET all classes data from MongoDB:
         app.get('/classes', verifyJWT, verifyAdmin, async (req, res) => {
             const result = await classesCollection.find().toArray();
@@ -166,14 +174,14 @@ async function run() {
         });
 
         // POST a class data on MongoDB:
-        app.post('/classes', async (req, res) => {
+        app.post('/classes', verifyJWT, verifyInstructor, async (req, res) => {
             const newItem = req.body;
             const result = await classesCollection.insertOne(newItem);
             res.send(result);
         })
 
         // PATCH a class status approval based on class id data on MongoDB:
-        app.patch('/classes/approve/:id', async (req, res) => {
+        app.patch('/classes/approve/:id', verifyJWT, verifyAdmin, async (req, res) => {
             const id = req.params.id;
             const filter = { _id: new ObjectId(id) };
             const updateDoc = {
@@ -188,7 +196,7 @@ async function run() {
         })
 
         // PATCH a class status denied based on class id data on MongoDB:
-        app.patch('/classes/deny/:id', async (req, res) => {
+        app.patch('/classes/deny/:id', verifyJWT, verifyAdmin, async (req, res) => {
             const id = req.params.id;
             const filter = { _id: new ObjectId(id) };
             const updateDoc = {
@@ -203,7 +211,7 @@ async function run() {
         })
 
         // PATCH a class feedback based on class id data on MongoDB:
-        app.patch('/classes/feedback/:id', async (req, res) => {
+        app.patch('/classes/feedback/:id',verifyJWT, verifyAdmin, async (req, res) => {
             const id = req.params.id;
             const { feedback } = req.body;
 
@@ -223,7 +231,7 @@ async function run() {
         });
 
         // GET all classes carts data  from MongoDB:
-        app.get('/carts', async (req, res) => {
+        app.get('/carts', verifyJWT, async (req, res) => {
             const email = req.query.email;
             if (!email) {
                 res.send([]);
@@ -233,8 +241,17 @@ async function run() {
             res.send(result);
         })
 
+        // GET a class data cart from MongoDB:
+        app.get('/carts/:id', verifyJWT, async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) };
+            const result = await cartCollection.findOne(query);
+            res.send(result);
+        })
+
+
         // POST a class data cart on MongoDB:
-        app.post('/carts', async (req, res) => {
+        app.post('/carts', verifyJWT, async (req, res) => {
             const selectedClass = req.body;
             console.log(selectedClass);
             const result = await cartCollection.insertOne(selectedClass);
@@ -242,35 +259,63 @@ async function run() {
         })
 
         // DELETE a class data from cart on MongoDB:
-        app.delete('/carts/:id', async (req, res) => {
+        app.delete('/carts/:id', verifyJWT, async (req, res) => {
             const id = req.params.id;
             const query = { _id: new ObjectId(id) };
             const result = await cartCollection.deleteOne(query);
             res.send(result);
         })
 
-        // Create payment intent : stripe
-        app.post('/create-payment-intent', async (req, res) => {
+        // Create payment intent for stripe payment:
+        app.post('/create-payment-intent', verifyJWT, async (req, res) => {
             const { price } = req.body;
-            const amount = price * 100;
+            const amount = parseInt(price * 100);
             const paymentIntent = await stripe.paymentIntents.create({
-                currency: 'usd',
                 amount: amount,
+                currency: 'usd',
                 payment_method_types: ['card']
             });
-            res.send({ clientSecret: paymentIntent.client_secret });
-        })
-        
-        // POST payment data on MongoDB:
-        app.post('/payments', async (req, res) => {
-            const payment = req.body;
-            const insertResult = await paymentCollection.insertOne(payment);
-            const query = { _id: { $in: payment.cartItems.map(id => new ObjectId(id)) } };
-            const deleteResult = await cartCollection.deleteMany(query);
-            res.send({ insertResult, deleteResult });
-        })
-        
 
+            res.send({
+                clientSecret: paymentIntent.client_secret
+            })
+        })
+
+        //  
+        app.get('/payment/:email',  verifyJWT,
+         async (req, res) => {
+            const email = req.params.email;
+            const query = { email: email };
+            const result = await paymentCollection.find(query).toArray();
+            res.send(result);
+        })
+
+        // POST payment data on MongoDB:
+        app.post('/payments', verifyJWT, async (req, res) => {
+            const payment = req.body;
+            cart_id = payment.cart_id;
+            user_id = payment.user_id;
+            selectedClassId = payment.selectedClassId;
+
+            // add in payment collection
+            const addedResult = await paymentCollection.insertOne(payment);
+
+            // delete in data from selected classes
+            const filter = { _id: new ObjectId(cart_id) };
+            const deletedResult = await cartCollection.deleteOne(filter);
+
+            // update enrolled students in class collection
+            const updateFilter = { _id: new ObjectId(selectedClassId) };
+            const update = {
+                $inc: {
+                    enrolled_students: 1
+                }
+            };
+            const addingResult = await classesCollection.updateOne(updateFilter, update);
+            res.send({ result: addedResult, deletedResult, addingResult })
+
+
+        })
 
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
